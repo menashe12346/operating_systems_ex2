@@ -1,0 +1,273 @@
+        -:    0:Source:ttt.c
+        -:    0:Graph:ttt.gcno
+        -:    0:Data:ttt.gcda
+        -:    0:Runs:4
+        -:    1:#include <stdio.h>
+        -:    2:#include <stdbool.h>
+        -:    3:#include <string.h>
+        -:    4:#include <stdlib.h>
+        -:    5:
+        -:    6:char board[9];
+        -:    7:char strategy[9];
+        -:    8:
+function initializeBoard called 3 returned 100% blocks executed 100%
+        3:    9:void initializeBoard() {
+       30:   10:    for (int i = 0; i < 9; ++i) {
+branch  0 taken 90%
+branch  1 taken 10% (fallthrough)
+       27:   11:        board[i] = ' ';
+        -:   12:    }
+        3:   13:}
+        -:   14:
+function printBoard called 21 returned 100% blocks executed 100%
+       21:   15:void printBoard() {
+       84:   16:    for (int i = 0; i < 3; ++i) {
+branch  0 taken 75%
+branch  1 taken 25% (fallthrough)
+      252:   17:        for (int j = 0; j < 3; ++j) {
+branch  0 taken 75%
+branch  1 taken 25% (fallthrough)
+      189:   18:            printf("%c", board[i * 3 + j]);
+call    0 returned 100%
+      189:   19:            if (j < 2) printf(" | ");
+branch  0 taken 67% (fallthrough)
+branch  1 taken 33%
+call    2 returned 100%
+        -:   20:        }
+       63:   21:        printf("\n");
+call    0 returned 100%
+       63:   22:        if (i < 2) printf("--|---|--\n");
+branch  0 taken 67% (fallthrough)
+branch  1 taken 33%
+call    2 returned 100%
+        -:   23:    }
+       21:   24:    printf("\n");
+call    0 returned 100%
+       21:   25:    fflush(stdout);
+call    0 returned 100%
+       21:   26:}
+        -:   27:
+function playerMove called 46 returned 100% blocks executed 100%
+       46:   28:bool playerMove(int index, char player) {
+       46:   29:    index -= 1; // Convert to 0-based index
+       46:   30:    if (board[index] == ' ') {
+branch  0 taken 46% (fallthrough)
+branch  1 taken 54%
+       21:   31:        board[index] = player;
+       21:   32:        return true;
+        -:   33:    } else {
+       25:   34:        return false;
+        -:   35:    }
+        -:   36:}
+        -:   37:
+function checkWin called 34 returned 100% blocks executed 90%
+       34:   38:bool checkWin(char player) {
+        -:   39:    // Check rows and columns
+      133:   40:    for (int i = 0; i < 3; ++i) {
+branch  0 taken 76%
+branch  1 taken 24% (fallthrough)
+      101:   41:        if (board[i * 3] == player && board[i * 3 + 1] == player && board[i * 3 + 2] == player)
+branch  0 taken 29% (fallthrough)
+branch  1 taken 71%
+branch  2 taken 45% (fallthrough)
+branch  3 taken 55%
+branch  4 taken 0% (fallthrough)
+branch  5 taken 100%
+    #####:   42:            return true;
+      101:   43:        if (board[i] == player && board[i + 3] == player && board[i + 6] == player)
+branch  0 taken 43% (fallthrough)
+branch  1 taken 57%
+branch  2 taken 23% (fallthrough)
+branch  3 taken 77%
+branch  4 taken 20% (fallthrough)
+branch  5 taken 80%
+        2:   44:            return true;
+        -:   45:    }
+        -:   46:    // Check diagonals
+       32:   47:    if (board[0] == player && board[4] == player && board[8] == player)
+branch  0 taken 47% (fallthrough)
+branch  1 taken 53%
+branch  2 taken 27% (fallthrough)
+branch  3 taken 73%
+branch  4 taken 0% (fallthrough)
+branch  5 taken 100%
+    #####:   48:        return true;
+       32:   49:    if (board[2] == player && board[4] == player && board[6] == player)
+branch  0 taken 41% (fallthrough)
+branch  1 taken 59%
+branch  2 taken 23% (fallthrough)
+branch  3 taken 77%
+branch  4 taken 33% (fallthrough)
+branch  5 taken 67%
+        1:   50:        return true;
+       31:   51:    return false;
+        -:   52:}
+        -:   53:
+function isBoardFull called 15 returned 100% blocks executed 86%
+       15:   54:bool isBoardFull() {
+       68:   55:    for (int i = 0; i < 9; ++i) {
+branch  0 taken 100%
+branch  1 taken 0% (fallthrough)
+       68:   56:        if (board[i] == ' ') {
+branch  0 taken 22% (fallthrough)
+branch  1 taken 78%
+       15:   57:            return false;
+        -:   58:        }
+        -:   59:    }
+    #####:   60:    return true;
+        -:   61:}
+        -:   62:
+function GameEnd called 18 returned 100% blocks executed 86%
+       18:   63:bool GameEnd() {
+       18:   64:    if (checkWin('X')) {
+call    0 returned 100%
+branch  1 taken 11% (fallthrough)
+branch  2 taken 89%
+        2:   65:        printf("I win!\n");
+call    0 returned 100%
+        2:   66:        return true;
+       16:   67:    } else if (checkWin('O')) {
+call    0 returned 100%
+branch  1 taken 6% (fallthrough)
+branch  2 taken 94%
+        1:   68:        printf("I lost!\n");
+call    0 returned 100%
+        1:   69:        return true;
+       15:   70:    } else if (isBoardFull()) {
+call    0 returned 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+    #####:   71:        printf("DRAW\n");
+call    0 never executed
+    #####:   72:        return true;
+        -:   73:    }
+       15:   74:    return false;
+        -:   75:}
+        -:   76:
+function programMove called 11 returned 100% blocks executed 100%
+       11:   77:void programMove() {
+       36:   78:    for (int i = 0; i < 9; ++i) {
+branch  0 taken 100%
+branch  1 taken 0% (fallthrough)
+       36:   79:        int move = strategy[i] - '0';
+       36:   80:        if (playerMove(move, 'O')) {
+call    0 returned 100%
+branch  1 taken 31% (fallthrough)
+branch  2 taken 69%
+       11:   81:            printf("%d\n", move);
+call    0 returned 100%
+       11:   82:            fflush(stdout);
+call    0 returned 100%
+       11:   83:            return;
+        -:   84:        }
+        -:   85:    }
+        -:   86:}
+        -:   87:
+function validateStrategy called 3 returned 100% blocks executed 77%
+        3:   88:bool validateStrategy(const char* str) {
+       3*:   89:    if (strlen(str) != 9) return false;
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+        3:   90:    int count[10] = {0};
+       30:   91:    for (int i = 0; i < 9; ++i) {
+branch  0 taken 90%
+branch  1 taken 10% (fallthrough)
+       27:   92:        int digit = str[i] - '0';
+      27*:   93:        if (digit < 1 || digit > 9) return false;
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 0% (fallthrough)
+branch  3 taken 100%
+      27*:   94:        if (count[digit]++ > 0) return false;
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+        -:   95:    }
+        3:   96:    return true;
+        -:   97:}
+        -:   98:
+function play called 3 returned 100% blocks executed 93%
+        3:   99:void play() {
+        -:  100:    char player_input[3];
+        -:  101:
+        3:  102:    programMove();
+call    0 returned 100%
+        3:  103:    printBoard();
+call    0 returned 100%
+        -:  104:
+        -:  105:    while (1) {
+       12:  106:        printf("Enter your move (1-9): ");
+call    0 returned 100%
+       12:  107:        fflush(stdout);
+call    0 returned 100%
+       12:  108:        if (fgets(player_input, sizeof(player_input), stdin) != NULL) {
+call    0 returned 100%
+branch  1 taken 100% (fallthrough)
+branch  2 taken 0%
+       12:  109:            int player_move = atoi(player_input);
+       12:  110:            if (player_move >= 1 && player_move <= 9) {
+branch  0 taken 92% (fallthrough)
+branch  1 taken 8%
+branch  2 taken 91% (fallthrough)
+branch  3 taken 9%
+      20*:  111:                if (playerMove(player_move, 'X')) {
+call    0 returned 100%
+branch  1 taken 100% (fallthrough)
+branch  2 taken 0%
+       10:  112:                    printBoard();
+call    0 returned 100%
+        -:  113:                } else {
+    #####:  114:                    printf("Invalid move. Try again.\n");
+call    0 never executed
+    #####:  115:                    continue;
+        -:  116:                }
+        -:  117:            } else {
+        2:  118:                printf("Invalid input. Enter a number between 1 and 9.\n");
+call    0 returned 100%
+        2:  119:                continue;
+        -:  120:            }
+        -:  121:        }
+       10:  122:        fflush(stdout);
+call    0 returned 100%
+        -:  123:
+       10:  124:        if (GameEnd()) break;
+call    0 returned 100%
+branch  1 taken 20% (fallthrough)
+branch  2 taken 80%
+        8:  125:        fflush(stdout);
+call    0 returned 100%
+        -:  126:
+        8:  127:        programMove();
+call    0 returned 100%
+        8:  128:        printBoard();
+call    0 returned 100%
+        8:  129:        if (GameEnd()) break;
+call    0 returned 100%
+branch  1 taken 12% (fallthrough)
+branch  2 taken 88%
+        7:  130:        fflush(stdout);
+call    0 returned 100%
+        -:  131:    }
+        3:  132:}
+        -:  133:
+function main called 4 returned 100% blocks executed 100%
+        4:  134:int main(int argc, char* argv[]) {
+        4:  135:    if (argc != 2 || !validateStrategy(argv[1])) {
+branch  0 taken 75% (fallthrough)
+branch  1 taken 25%
+call    2 returned 100%
+branch  3 taken 0% (fallthrough)
+branch  4 taken 100%
+        1:  136:        printf("Error\n");
+call    0 returned 100%
+        1:  137:        fflush(stdout);
+call    0 returned 100%
+        1:  138:        return 1;
+        -:  139:    }
+        -:  140:
+        3:  141:    strcpy(strategy, argv[1]);
+        3:  142:    initializeBoard();
+call    0 returned 100%
+        3:  143:    play();
+call    0 returned 100%
+        3:  144:    return 0;
+        -:  145:}

@@ -1,0 +1,539 @@
+        -:    0:Source:mync3_5.c
+        -:    0:Graph:mync3_5.gcno
+        -:    0:Data:mync3_5.gcda
+        -:    0:Runs:2
+        -:    1:#include <stdio.h>
+        -:    2:#include <stdlib.h>
+        -:    3:#include <unistd.h>
+        -:    4:#include <sys/wait.h>
+        -:    5:#include <string.h>
+        -:    6:#include <fcntl.h>
+        -:    7:#include <sys/types.h>
+        -:    8:#include <sys/socket.h>
+        -:    9:#include <netinet/in.h>
+        -:   10:#include <arpa/inet.h>
+        -:   11:#include <netdb.h>
+        -:   12:#include <errno.h>
+        -:   13:#include <signal.h>
+        -:   14:#include <sys/select.h> // For fd_set and select
+        -:   15:
+        -:   16:#define BUFFER_SIZE 1024
+        -:   17:
+        -:   18:int input_fd = STDIN_FILENO;
+        -:   19:int output_fd = STDOUT_FILENO;
+        -:   20:int input_port = 0;
+        -:   21:
+        -:   22:/// @brief Function to create a TCP server
+        -:   23:/// @param port
+        -:   24:/// @return socket file descriptor
+function create_tcp_server called 1 returned 100% blocks executed 57%
+        1:   25:int create_tcp_server(int port) {
+        -:   26:    // Socket file descriptor
+        -:   27:    int sockfd; //This will be used to reference the socket throughout its lifetime.
+        -:   28:    struct sockaddr_in server_addr; // A structure that holds the address and port on which the server socket will listen for incoming connections.
+        -:   29:
+        -:   30:    /* High-level of struct sockaddr_in:
+        -:   31:
+        -:   32:    struct sockaddr_in {
+        -:   33:        short            sin_family;   // address family, e.g. AF_INET
+        -:   34:        unsigned short   sin_port;     //  port number for the socket
+        -:   35:        struct in_addr   sin_addr;     //  structure to hold the IPv4 address(binary representation of the IP address for the socket)
+        -:   36:        char             sin_zero[8];  // so it will be competible with the generic struct sockaddr
+        -:   37:    };
+        -:   38:
+        -:   39:    struct in_addr {
+        -:   40:        unsigned long s_addr; //where we hold the ip address 
+        -:   41:    };
+        -:   42:    */
+        -:   43:
+        -:   44:    /*
+        -:   45:    AF_INET: Specifies the address family (IPv4). we chose IPv4 because it ensures compatibility with a vast majority of existing networks and devices.
+        -:   46:    SOCK_STREAM: Specifies the socket type (TCP).
+        -:   47:    0: means that the system should automatically choose the appropriate protocol for the given socket type. For SOCK_STREAM with AF_INET, this will be TCP..
+        -:   48:    */
+        1:   49:    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+call    0 returned 100%
+        1:   50:    if (sockfd < 0) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   51:        perror("socket");
+call    0 never executed
+    #####:   52:        return -1;
+        -:   53:    }
+        -:   54:
+        -:   55:    // allows the socket to reuse the local address
+        1:   56:    int val = 1;
+        1:   57:    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) == -1) {
+call    0 returned 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+    #####:   58:        perror("setsockopt");
+call    0 never executed
+        -:   59:    }
+        -:   60:
+        1:   61:    memset(&server_addr, 0, sizeof(server_addr));  //ensures that the server_addr structure is fully initialized to zero
+        -:   62:
+        -:   63:    //we chose AF_INET as the address family for the socket(specifying that the socket will use IPv4 addresses, a protocol for transmitting data over the internet)
+        -:   64:    //there are many protocols in AF_INET, among them the most popular are TCP and UDP. we will use TCP.
+        1:   65:    server_addr.sin_family = AF_INET;
+        1:   66:    server_addr.sin_addr.s_addr = INADDR_ANY; // 0.0.0.0 in IPv4, it will accept connections on all available networks.
+        1:   67:    server_addr.sin_port = htons(port); //convert the representation of the port into big-endian(the expected network byte order).
+        -:   68:
+        -:   69:    /* bind is associating a socket with a specific local address and port number
+        -:   70:    sockfd - file descriptor of the socket.
+        -:   71:    (struct sockaddr *)&server_addr - pointer to a sockaddr structure that contains the address to which the socket will bound.
+        -:   72:    sizeof(server_addr) - size of the server_addr structure, tells the bind how much memory to read.
+        -:   73:    */
+        1:   74:    if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+call    0 returned 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+    #####:   75:        perror("bind");
+call    0 never executed
+    #####:   76:        close(sockfd);
+call    0 never executed
+    #####:   77:        return -1;
+        -:   78:    }
+        -:   79:
+        -:   80:    /* tells the operating system that the program is ready to accept incoming connections on the socket sockfd.
+        -:   81:    sockfd - file descriptor of the socket.
+        -:   82:    1 - backlog parameter, 
+        -:   83:    When a client attempts to connect to the server, the connection is placed in a queue if the server is not immediately ready to accept it. 
+        -:   84:    The backlog parameter determines the size of this queue.
+        -:   85:    */
+        1:   86:    if (listen(sockfd, 1) < 0) {
+call    0 returned 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+    #####:   87:        perror("listen");
+call    0 never executed
+    #####:   88:        close(sockfd);
+call    0 never executed
+    #####:   89:        return -1;
+        -:   90:    }
+        -:   91:
+        1:   92:    printf("Server listening on port %d\n", port);
+call    0 returned 100%
+        -:   93:
+        -:   94:    struct sockaddr_in client_addr;
+        1:   95:    socklen_t client_len = sizeof(client_addr);
+        1:   96:    int client_fd = accept(sockfd, (struct sockaddr *)&client_addr, &client_len);
+call    0 returned 100%
+        1:   97:    if (client_fd < 0) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   98:        perror("accept");
+call    0 never executed
+    #####:   99:        close(sockfd);
+call    0 never executed
+    #####:  100:        exit(EXIT_FAILURE);
+call    0 never executed
+        -:  101:    }
+        -:  102:
+        1:  103:    printf("Client connected from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port)); //convert from a binary format into IPv4 format
+call    0 returned 100%
+call    1 returned 100%
+        1:  104:    return client_fd;
+        -:  105:}
+        -:  106:
+        -:  107:// Function to start a TCP client
+function start_tcp_client called 0 returned 0% blocks executed 0%
+    #####:  108:int start_tcp_client(char *hostname, int port) {
+        -:  109:    int sockfd;
+        -:  110:    struct sockaddr_in server_addr;
+        -:  111:
+    #####:  112:    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+call    0 never executed
+    #####:  113:    if (sockfd < 0) {
+branch  0 never executed (fallthrough)
+branch  1 never executed
+    #####:  114:        perror("socket");
+call    0 never executed
+    #####:  115:        return -1;
+        -:  116:    }
+        -:  117:
+    #####:  118:    memset(&server_addr, 0, sizeof(server_addr)); //  reset server_addr to 0
+    #####:  119:    server_addr.sin_family = AF_INET; //set address family to AF_INET
+    #####:  120:    server_addr.sin_port = htons(port); // convert the port to big-endian.
+        -:  121:
+    #####:  122:    if (inet_pton(AF_INET, hostname, &server_addr.sin_addr) <= 0) {  //converts the hostname (a string) to an IP address and stores it in server_addr.sin_addr.
+call    0 never executed
+branch  1 never executed (fallthrough)
+branch  2 never executed
+    #####:  123:        fprintf(stderr, "Invalid address/ Address not supported\n");
+call    0 never executed
+    #####:  124:        close(sockfd);
+call    0 never executed
+    #####:  125:        return -1;
+        -:  126:    }
+        -:  127:
+    #####:  128:    printf("Connecting to %s:%d\n", hostname, port);
+call    0 never executed
+        -:  129:
+    #####:  130:    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+call    0 never executed
+branch  1 never executed (fallthrough)
+branch  2 never executed
+    #####:  131:        perror("connect");
+call    0 never executed
+    #####:  132:        close(sockfd);
+call    0 never executed
+    #####:  133:        return -1;
+        -:  134:    }
+        -:  135:
+    #####:  136:    printf("Client connected to %s on port %d\n", hostname, port);
+call    0 never executed
+    #####:  137:    return sockfd;
+        -:  138:}
+        -:  139:
+        -:  140:
+        -:  141:/// @brief Function to parse TCP/UDP/UDS parameters
+        -:  142:/// @param param TCP configuration information
+        -:  143:/// @return 1 on Success, 0 on fail
+function parse_parameter called 1 returned 100% blocks executed 22%
+        1:  144:void parse_parameter(char *param) {
+        -:  145:    int port;
+        1:  146:    if (strncmp(param, "TCPS", 4) == 0) {
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+        1:  147:        port = atoi(param + 4);
+        1:  148:        input_port = port;
+        1:  149:        printf("Creating TCP server on port %d\n", port);
+call    0 returned 100%
+        1:  150:        input_fd = create_tcp_server(port);
+call    0 returned 100%
+        1:  151:        if (input_fd == -1) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  152:            fprintf(stderr, "Failed to create TCP server\n");
+call    0 never executed
+    #####:  153:            exit(EXIT_FAILURE);
+call    0 never executed
+        -:  154:        }
+    #####:  155:    } else if (strncmp(param, "TCPC", 4) == 0) {
+branch  0 never executed (fallthrough)
+branch  1 never executed
+    #####:  156:        param += 4;
+    #####:  157:        char *hostname = strtok(param, ",");
+call    0 never executed
+    #####:  158:        char *port_str = strtok(NULL, ",");
+call    0 never executed
+    #####:  159:        if (hostname == NULL || port_str == NULL) {
+branch  0 never executed (fallthrough)
+branch  1 never executed
+branch  2 never executed (fallthrough)
+branch  3 never executed
+    #####:  160:            fprintf(stderr, "Invalid client parameters\n");
+call    0 never executed
+    #####:  161:            exit(EXIT_FAILURE);
+call    0 never executed
+        -:  162:        }
+    #####:  163:        int port = atoi(port_str);
+    #####:  164:        if (port == input_port) {
+branch  0 never executed (fallthrough)
+branch  1 never executed
+    #####:  165:            output_fd = input_fd;
+    #####:  166:            return;
+        -:  167:        }
+    #####:  168:        printf("Connecting to TCP server at %s:%d\n", hostname, port);
+call    0 never executed
+    #####:  169:        if (strcmp(hostname, "localhost") == 0) { hostname = "127.0.0.1"; }
+branch  0 never executed (fallthrough)
+branch  1 never executed
+    #####:  170:        output_fd = start_tcp_client(hostname, port);
+call    0 never executed
+    #####:  171:        if (output_fd == -1) {
+branch  0 never executed (fallthrough)
+branch  1 never executed
+    #####:  172:            fprintf(stderr, "Failed to connect to TCP server\n");
+call    0 never executed
+    #####:  173:            exit(EXIT_FAILURE);
+call    0 never executed
+        -:  174:        }
+        -:  175:    }
+        -:  176:}
+        -:  177:
+        -:  178:// Signal handler for alarm
+function handle_alarm called 0 returned 0% blocks executed 0%
+    #####:  179:void handle_alarm(int sig) {
+    #####:  180:    printf("Timeout reached, terminating the process\n");
+call    0 never executed
+    #####:  181:    exit(EXIT_SUCCESS);
+        -:  182:}
+        -:  183:
+function chat called 1 returned 100% blocks executed 65%
+        1:  184:void chat() {
+        -:  185:    fd_set read_fds;
+        -:  186:    char buffer[BUFFER_SIZE];
+        1:  187:    int max_fd = (input_fd > output_fd) ? input_fd : output_fd;
+        -:  188:
+        4:  189:    while (1) {
+       85:  190:        FD_ZERO(&read_fds);
+branch  0 taken 94%
+branch  1 taken 6% (fallthrough)
+        5:  191:        FD_SET(input_fd, &read_fds);
+        5:  192:        FD_SET(output_fd, &read_fds);
+        -:  193:
+        -:  194:        // Wait for input on either file descriptor
+        5:  195:        int activity = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+call    0 returned 100%
+        5:  196:        if (activity < 0) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  197:            perror("select");
+call    0 never executed
+    #####:  198:            exit(EXIT_FAILURE);
+call    0 never executed
+        -:  199:        }
+        -:  200:
+        -:  201:        // Check if there's data to read from input_fd
+        5:  202:        if (FD_ISSET(input_fd, &read_fds)) {
+branch  0 taken 60% (fallthrough)
+branch  1 taken 40%
+        3:  203:            ssize_t bytes_read = read(input_fd, buffer, sizeof(buffer));
+call    0 returned 100%
+        3:  204:            if (bytes_read < 0) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  205:                perror("read from input_fd");
+call    0 never executed
+    #####:  206:                exit(EXIT_FAILURE);
+call    0 never executed
+        3:  207:            } else if (bytes_read == 0) {
+branch  0 taken 33% (fallthrough)
+branch  1 taken 67%
+        1:  208:                printf("End of input from input_fd\n");
+call    0 returned 100%
+        1:  209:                break;
+        -:  210:            }
+        2:  211:            if (write(output_fd, buffer, bytes_read) < 0) {
+call    0 returned 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+    #####:  212:                perror("write to output_fd");
+call    0 never executed
+    #####:  213:                exit(EXIT_FAILURE);
+call    0 never executed
+        -:  214:            }
+        -:  215:        }
+        -:  216:
+        -:  217:        // Check if there's data to read from output_fd
+        4:  218:        if (FD_ISSET(output_fd, &read_fds)) {
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+        2:  219:            ssize_t bytes_read = read(output_fd, buffer, sizeof(buffer));
+call    0 returned 100%
+        2:  220:            if (bytes_read < 0) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  221:                perror("read from output_fd");
+call    0 never executed
+    #####:  222:                exit(EXIT_FAILURE);
+call    0 never executed
+        2:  223:            } else if (bytes_read == 0) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  224:                printf("End of input from output_fd\n");
+call    0 never executed
+    #####:  225:                break;
+        -:  226:            }
+        2:  227:            if (write(input_fd, buffer, bytes_read) < 0) {
+call    0 returned 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+    #####:  228:                perror("write to input_fd");
+call    0 never executed
+    #####:  229:                exit(EXIT_FAILURE);
+call    0 never executed
+        -:  230:            }
+        -:  231:        }
+        -:  232:    }
+        1:  233:}
+        -:  234:
+function main called 1 returned 200% blocks executed 57%
+        1:  235:int main(int argc, char *argv[]) { 
+        1:  236:    if (argc < 3) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  237:        fprintf(stderr, "Usage: %s <program> [args...] -i <input> -o <output> -b <both> -t <timeout>\n", argv[0]);
+call    0 never executed
+    #####:  238:        return 1;
+        -:  239:    }
+        -:  240:
+        1:  241:    char *program = NULL;
+        1:  242:    char input_param[256] = "";
+        1:  243:    char output_param[256] = "";
+        1:  244:    int timeout = 0;
+        1:  245:    int i = 1; // because the first argument is the program name.
+        -:  246:
+        1:  247:    int length = 0;
+        2:  248:    for (; i < argc && argv[i][0] != '-'; i++) {
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 50%
+branch  3 taken 50% (fallthrough)
+        1:  249:        length += strlen(argv[i]) + 1; // length of the program
+        -:  250:    }
+        -:  251:
+        1:  252:    program = malloc(length);
+        1:  253:    if (!program) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  254:        perror("malloc");
+call    0 never executed
+    #####:  255:        exit(EXIT_FAILURE);
+call    0 never executed
+        -:  256:    }
+        -:  257:
+        1:  258:    program[0] = '\0';
+        2:  259:    for (i = 1; i < argc && argv[i][0] != '-'; i++) { // extract the program string from argv.
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 50%
+branch  3 taken 50% (fallthrough)
+        1:  260:        strcat(program, argv[i]);
+        1:  261:        if (i < argc - 1) {
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+        1:  262:            strcat(program, " ");
+        -:  263:        }
+        -:  264:    }
+        -:  265:
+        1:  266:    printf("Program to execute: %s\n", program);
+call    0 returned 100%
+        -:  267:
+        1:  268:    int isBoth = 0;
+        2:  269:    for (; i < argc; i++) {
+branch  0 taken 50%
+branch  1 taken 50% (fallthrough)
+        1:  270:        if (strcmp(argv[i], "-i") == 0 && i + 1 < argc) { // ensures also that there is another argument after -i.
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 100% (fallthrough)
+branch  3 taken 0%
+        1:  271:            strcpy(input_param, argv[++i]);
+        1:  272:            printf("Input parameter: %s\n", input_param);
+call    0 returned 100%
+    #####:  273:        } else if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
+branch  0 never executed (fallthrough)
+branch  1 never executed
+branch  2 never executed (fallthrough)
+branch  3 never executed
+    #####:  274:            strcpy(output_param, argv[++i]);
+    #####:  275:            printf("Output parameter: %s\n", output_param);
+call    0 never executed
+    #####:  276:        } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
+branch  0 never executed (fallthrough)
+branch  1 never executed
+branch  2 never executed (fallthrough)
+branch  3 never executed
+    #####:  277:            strcpy(input_param, argv[++i]);
+    #####:  278:            strcpy(output_param, argv[i]);
+    #####:  279:            isBoth = 1;
+    #####:  280:            printf("Both parameter: %s\n", input_param);
+call    0 never executed
+    #####:  281:        } else if (strcmp(argv[i], "-t") == 0 && i + 1 < argc) {
+branch  0 never executed (fallthrough)
+branch  1 never executed
+branch  2 never executed (fallthrough)
+branch  3 never executed
+    #####:  282:            timeout = atoi(argv[++i]);
+    #####:  283:            printf("Timeout parameter: %d\n", timeout);
+call    0 never executed
+        -:  284:        }
+        -:  285:    }
+        -:  286:
+        1:  287:    if (timeout > 0) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  288:        signal(SIGALRM, handle_alarm); // will be executed when the signal is received. will also execute the handle_alarm function.
+call    0 never executed
+    #####:  289:        alarm(timeout); //an alarm signal set to be delivered after a specified number of seconds.
+call    0 never executed
+        -:  290:    }
+        -:  291:
+        1:  292:    if (strlen(input_param) > 0) {
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+        1:  293:        parse_parameter(input_param);
+call    0 returned 100%
+        -:  294:    }
+        -:  295:
+        1:  296:    if (strlen(output_param) > 0) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  297:        if (isBoth) {
+branch  0 never executed (fallthrough)
+branch  1 never executed
+    #####:  298:            output_fd = input_fd;
+        -:  299:        } else {
+    #####:  300:            parse_parameter(output_param);
+call    0 never executed
+        -:  301:        }
+        -:  302:    }
+        -:  303:
+        1:  304:    if (input_fd != STDIN_FILENO) {
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+        1:  305:        if (dup2(input_fd, STDIN_FILENO) == -1) {
+call    0 returned 100%
+branch  1 taken 0% (fallthrough)
+branch  2 taken 100%
+    #####:  306:            perror("dup2 input");
+call    0 never executed
+    #####:  307:            exit(EXIT_FAILURE);
+call    0 never executed
+        -:  308:        }
+        -:  309:    }
+        -:  310:
+        1:  311:    if (output_fd != STDOUT_FILENO) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  312:        if (dup2(output_fd, STDOUT_FILENO) == -1) {
+call    0 never executed
+branch  1 never executed (fallthrough)
+branch  2 never executed
+    #####:  313:            perror("dup2 output");
+call    0 never executed
+    #####:  314:            exit(EXIT_FAILURE);
+call    0 never executed
+        -:  315:        }
+        -:  316:    }
+        -:  317:
+        1:  318:    pid_t pid = fork(); // create a child and run the program(so after the program exit we will return to the parent and will be able to continue)
+call    0 returned 200%
+        2:  319:    if (pid == -1) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  320:        perror("fork");
+call    0 never executed
+    #####:  321:        exit(EXIT_FAILURE);
+call    0 never executed
+        -:  322:    }
+        -:  323:
+        2:  324:    if (pid == 0) {
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+        1:  325:        chat();
+call    0 returned 100%
+        -:  326:    }else {
+        1:  327:        wait(NULL);
+call    0 returned 100%
+        -:  328:    }
+        -:  329:
+        2:  330:    free(program);
+        2:  331:    return EXIT_SUCCESS;
+        -:  332:}
+        -:  333:
+        -:  334:/* HOW TO RUN:
+        -:  335:
+        -:  336:1)  ./mync3_5 "./ttt 123456789" -i TCPS4050
+        -:  337:    nc localhost 4050
+        -:  338:*/
+        -:  339:
+        -:  340:/* Creating gcov:
+        -:  341:
+        -:  342:1)  make
+        -:  343:2) running the program
+        -:  344:3) gcov -b mync3_5.c
+        -:  345:*/

@@ -1,0 +1,96 @@
+        -:    0:Source:mync2.c
+        -:    0:Graph:mync2.gcno
+        -:    0:Data:mync2.gcda
+        -:    0:Runs:2
+        -:    1:#include <stdio.h>
+        -:    2:#include <stdlib.h>     // For functions like mkstemp
+        -:    3:#include <unistd.h>     // For system functions like fork, dup2, execlp
+        -:    4:#include <sys/wait.h>   // For functions like waitpid
+        -:    5:#include <string.h>     // For functions like strcmp
+        -:    6:
+function mync_program called 1 returned 100% blocks executed 69%
+        1:    7:void mync_program(const char *program) {
+        -:    8:    // Fork the process
+        1:    9:    pid_t pid = fork(); // create a new process (child process) that is a copy of the parent process.
+call    0 returned 200%
+        2:   10:    if (pid == -1) { // If fork fails
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   11:        printf("Error occurred in fork");
+call    0 never executed
+    #####:   12:        return;
+        -:   13:    }
+        -:   14:
+        2:   15:    if (pid == 0) {  // Child process
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+        -:   16:        // Execute the given program:
+        -:   17:        // /bin/sh - filename or path of the program to be executed.
+        -:   18:        // sh - name of the program (in our case is the shell).
+        -:   19:        // -c - an argument to the shell sh. It tells the shell to read commands from the next argument, which is program.
+        -:   20:        // program - arguments to the program.
+        -:   21:        // (char *) NULL - The list of arguments must be terminated by a NULL pointer.
+        1:   22:        execlp("/bin/sh", "sh", "-c", program, (char *) NULL);
+        -:   23:        // the existing code and memory of the current process are replaced by the new program (/bin/sh in this case).
+        -:   24:        // The process ID remains the same, but its memory and program are entirely replaced.
+        -:   25:        // if the command completes or fails, the process ends there.
+        -:   26:        // If there is any error in executing the shell or the command, execlp returns -1.
+        1:   27:        printf("Error occurred in execlp");
+call    0 returned 0%
+    #####:   28:        return;
+        -:   29:    } else {  // Parent process
+        -:   30:        // Wait for the child process to finish
+        -:   31:        // pid: The process ID of the child process to wait for: 
+        -:   32:        // 1. > 0: Wait for the child process with the specific process ID
+        -:   33:        // 2. -1: will wait for the first child process that changes state (usually terminate), regardless of which child it is.
+        -:   34:        // 3. 0: Wait for any child process in the same process group as the caller.
+        -:   35:        // *status: A pointer to an integer where the information about how the child process terminated. This information includes whether the child process exited normally, was killed by a signal, or stopped.
+        -:   36:        // options: Flags that affect the behavior of waitpid. For our purposes, we use 0, meaning no special options are set.
+        -:   37:        int status;
+        1:   38:        waitpid(pid, &status, 0);
+call    0 returned 100%
+        -:   39:
+        -:   40:        // WIFEXITED(status) checks if the child process terminated normally.
+        -:   41:        // If it did, WEXITSTATUS(status) is used to get the exit status of the child process (the value passed to exit or returned from main).
+        1:   42:        if (WIFEXITED(status)) {
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+        1:   43:            printf("Program exited with status %d\n", WEXITSTATUS(status));
+call    0 returned 100%
+        -:   44:        } else {
+    #####:   45:            printf("Program did not exit normally\n");
+call    0 never executed
+        -:   46:        }
+        -:   47:    }
+        -:   48:}
+        -:   49:
+        -:   50:/*
+        -:   51:The mync_program function:
+        -:   52:1. Forks a new process. In the child process, it executes the specified program using execlp.
+        -:   53:2. The parent process waits for the child process to finish and prints the exit status.
+        -:   54:*/
+        -:   55:
+function main called 1 returned 100% blocks executed 71%
+        1:   56:int main(int argc, char *argv[]) {
+        1:   57:    if (argc != 3 || strcmp(argv[1], "-e") != 0) { // The "-e" flag is used to clearly indicate that the following argument is the program to execute.
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 0% (fallthrough)
+branch  3 taken 100%
+    #####:   58:        fprintf(stderr, "Usage: %s -e <program>\n", argv[0]);
+call    0 never executed
+    #####:   59:        return EXIT_FAILURE;
+        -:   60:    }
+        -:   61:
+        1:   62:    const char *program = argv[2];
+        1:   63:    mync_program(program);
+call    0 returned 100%
+        -:   64:
+        1:   65:    return 0;
+        -:   66:}
+        -:   67:
+        -:   68:/* HOW TO RUN:
+        -:   69:
+        -:   70:1)  ./mync2 -e "./ttt 123456789" -i TCPS4050
+        -:   71:    nc localhost 4050
+        -:   72:*/
