@@ -430,13 +430,13 @@ int main(int argc, char *argv[]) {
 1)  ./mync3And4 -e "./ttt 123456789" -i TCPS4050 -t 10
     nc localhost 4050
 
-2)  ./mync3And4 -e "./ttt 123456789" -o TCPClocalhost4455 -t 10
+2)  ./mync3And4 -e "./ttt 123456789" -o TCPClocalhost,4455 -t 10
     nc -l 4455
 
 3)  ./mync3And4 -e "./ttt 123456789" -b TCPS4050 -t 10
     nc localhost 4050
 
-4)  ./mync3And4 -e "./ttt 123456789" -i TCPS4050 -o TCPClocalhost4455 -t 10
+4)  ./mync3And4 -e "./ttt 123456789" -i TCPS4050 -o TCPClocalhost,4455 -t 10
     nc -l 4455
     nc localhost 4050
 
